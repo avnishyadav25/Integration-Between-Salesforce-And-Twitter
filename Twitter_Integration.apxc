@@ -1,0 +1,101 @@
+public class Twitter_Integration 
+{ 
+    public static final String twitterApiKey = 'Bsl0z27B8B6VyAExxeO0kDhzF';
+    public static final String twitterApiSecret = 'pMBCUeGV52uz9xxeW2B3queihFOqcByXUzgt8KydMvzgLrJSt';
+    public static final String twitterAccessToken = '2191426748-xxxBIOmYeNsFqNYLdfOwXRqEBVE5Wi65DMJvdMW';
+    public static final String twitterAccessTokenSecret = 'WqrgGxxUpzANdNqz5jfGskfiCf6k3rAho4nTkUXCiWOP';
+    public static String twittermessage = 'Salesforce Test';
+    
+    public static PageReference integrateWithTwitter(){
+        if(Twitter_Integration.postOnTwitter(twitterApiKey, twitterApiSecret, twitterAccessToken, twitterAccessTokenSecret, twittermessage))
+        {
+            ApexPages.addmessage(new ApexPages.message(ApexPages.severity.Info,'Integration is connect'));
+        }
+        else{
+            ApexPages.addmessage(new ApexPages.message(ApexPages.severity.Error,'Unable to Connect'));
+        }
+        
+        return null;
+    } 
+    
+    public static Boolean postOnTwitter(String twitterApiKey, String twitterApiSecret, String twitterAccessToken, String twitterAccessTokenSecret, String twittermessage)
+    {
+        if(String.isNotBlank(twitterApiKey) && String.isNotBlank(twitterApiSecret) && String.isNotBlank(twitterAccessToken) && String.isNotBlank(twitterAccessTokenSecret) && String.isNotBlank(twittermessage))
+        {
+            String oathNonce = Twitter_Integration.generateOathNonce();
+            Long timestamp = Twitter_Integration.generateTimeStamp();
+            String signature = '';
+            
+            twittermessage = Encodingutil.urlEncode(twittermessage, 'UTF-8');
+            String othSecret = Encodingutil.urlEncode(twitterAccesstokensecret, 'UTF-8');
+            String consumSecret = Encodingutil.urlEncode(twitterAPIsecret, 'UTF-8');
+            String othToken = Encodingutil.urlEncode(twitterAccesstoken, 'UTF-8');
+            String othNonce = Encodingutil.urlEncode(oathNonce, 'UTF-8');
+            String consumKey = Encodingutil.urlEncode(twitterAPIkey, 'UTF-8');
+            twittermessage = twittermessage.replaceAll('\\+','%20');
+            String paramString = 'include_entities=true&'+
+                'oauth_consumer_key='+consumKey+'&'+
+                'oauth_nonce='+othNonce+'&'+
+                'oauth_signature_method=HMAC-SHA1&'+
+                'oauth_timestamp='+timestamp+'&'+
+                'oauth_token='+othToken+'&'+
+                'oauth_version=1.0&'+
+                'status='+twittermessage;
+            string baseString = 'POST&'+EncodingUtil.urlEncode('https://api.twitter.com/1.1/statuses/update.json', 'UTF-8')+'&'+ 
+                EncodingUtil.urlEncode(paramString, 'UTF-8');
+            system.debug('### baseString :'+baseString);
+            string signString = consumSecret+'&'+othSecret;
+            system.debug('### signString :'+signString);
+            blob blobBaseString = Blob.ValueOf(baseString);
+            blob blobSignString = Blob.ValueOf(signString);
+            blob signBlob = crypto.generateMac('hmacSHA1',blobBaseString ,blobSignString );        
+            signature =  EncodingUtil.base64Encode(signBlob);
+            system.debug('### Sign :'+signature);
+            
+            if(String.isNotBlank(signature))
+            {
+                signature = Encodingutil.urlEncode(signature, 'UTF-8');
+                HttpRequest req = new HttpRequest();
+                req.setEndpoint('https://api.twitter.com/1.1/statuses/update.json?include_entities=true');
+                req.setMethod('POST');
+                string reqstring = 'OAuth oauth_consumer_key="'+consumKey+'",'+
+                    'oauth_nonce="'+othNonce+'",'+
+                    'oauth_signature="'+signature +'",'+
+                    'oauth_signature_method="HMAC-SHA1",'+
+                    'oauth_timestamp="'+timestamp+'",'+
+                    'oauth_token="'+othToken+'",'+
+                    'oauth_version="1.0"';
+                system.debug('### req String :'+reqstring);
+                req.setHeader('Authorization',reqstring);
+                req.setHeader('Content-Type','application/x-www-form-urlencoded');
+                req.setBody('status='+twittermessage);
+                if(!Test.isRunningTest())
+                {
+                    Http http = new Http();
+                    HTTPResponse res = http.send(req);
+                    system.debug(res.getBody());
+                }
+            }
+        }
+        return true;
+    }
+    
+    public static String generateOathNonce()
+    {
+        Blob blobKey = crypto.generateAesKey(256);
+        String key = EncodingUtil.convertToHex(blobKey);
+        String oathNonce = EncodingUtil.base64Encode(Blob.valueOf(key));
+        oathNonce = oathNonce.replaceAll('[^a-zA-Z0-9]+',''+integer.valueOf(math.random() * 10));
+        oathNonce = oathNonce.substring(0,42);
+        return oathNonce;
+    }
+    
+    //method to generate current timestamp in seconds
+    public static long generateTimeStamp()
+    {
+        long timestamp = datetime.now().getTime(); 
+        timestamp = timestamp / 1000;
+        return timestamp;
+    }
+    
+}
