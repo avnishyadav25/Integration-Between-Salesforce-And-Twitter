@@ -1,0 +1,11 @@
+<apex:page controller="Twitter_Integration" >
+    <apex:form >
+    	<apex:pageBlock title="Integration With Twitter">
+            <apex:pageBlockSection >
+                <apex:messages />
+            	<apex:commandButton value="Click here for Integration" action="{!integrateWithTwitter}"/>
+            
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>
